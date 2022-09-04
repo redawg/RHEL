@@ -1,5 +1,5 @@
 ---
-- name: Getting authorized_key
+- name: Makeing Changes to Authorized key
   hosts: all
   gather_facts: False
 
@@ -7,6 +7,6 @@
   tasks:
     - name: Set authorized key taken from file
       authorized_key:
-        user: root
-        state: present
-        key: "{{lookup('file', '/home/sshkey/redpub')}}"
+        user: "{{ key_user}}"
+        state: "{{ state }}"
+        key: "{{ authorized_key }}"
