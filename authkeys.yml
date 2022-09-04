@@ -5,7 +5,7 @@
 
 
   tasks:
-    - name: Set authorized key taken from file
+    - name: Authorized key set to {{ state }} from Survey for {{ user }}
       authorized_key:
         user: "{{ key_user}}"
         state: "{{ state }}"
