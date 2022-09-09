@@ -16,7 +16,7 @@
              key: "running_hosts"
        rescue:
          - name: Send Alert to Slack
-           slack:
+           communtiy.general.slack:
             token: "{{ slack_token }}"
             msg: "Ansible failed on *({{ inventory_hostname }})* \n
        *Task*: {{ ansible_failed_task.name }} \n
