@@ -7,6 +7,6 @@
   tasks:
     - name: Set authorized key taken from file
       authorized_key:
-        user: root
+        user: "{{ key_user }}"
         state: present
         key: "{{lookup('file', '/home/sshkey/redpub')}}"
