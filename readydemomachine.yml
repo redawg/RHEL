@@ -108,12 +108,12 @@
       when: ansible_default_ipv4.address is search("172.16.1*")
       tags:
         - copyhost
-    - name: Disable SElinux
-      selinux:
-        policy: targeted
-        state: disabled
-      notify:
-       - Reboot needed
+#    - name: Disable SElinux
+#      selinux:
+#        policy: targeted
+#        state: disabled
+#      notify:
+#       - Reboot needed
     # Gather the start time to use in a later playbook
     - name: Record the post_install_time
       ansible.builtin.command:
