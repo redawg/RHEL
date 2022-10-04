@@ -11,7 +11,29 @@
      sla: "Self-Support"
 
   tasks:
-    # Gather the start time to use in a later playbook
+    - block:
+        - name: Wait for SSH connection
+          ansible.builtin.wait_for_connection:
+            delay: 30
+            timeout: 120
+          vars:
+            ansible_connection: ssh
+
+        - name: add devices with connectivity to the "running_hosts" group
+          group_by:
+            key: "running_hosts"
+      rescue:
+        - name: Send Alert to Slack
+          community.general.slack:
+           token: "{{ slack_token }}"
+           msg: "Ansible failed on *({{ inventory_hostname }})* \n
+      *Task*: {{ ansible_failed_task.name }} \n
+      *Action*: {{ ansible_failed_task.action }} \n
+      *Error Message*: \n ```{{ ansible_failed_result | to_nice_json }}``` "
+           channel: "{{ channel }}"
+           username: "{{ slackuser }}"
+          run_once: true
+          delegate_to: localhost# Gather the start time to use in a later playbook
     - name: Record the subscription_time
       ansible.builtin.command:
         cmd: "date '+%H:%M:%S'"
@@ -19,7 +41,11 @@
       register: subscription_time_pre
       run_once: true
 
-    # Make the start time available to other playbooks
+- name: Gather facts from running_hosts
+  hosts: running_hosts
+
+  tasks:
+      # Make the start time available to other playbooks
     - name: Capture the subscription_time
       ansible.builtin.set_stats:
         data:
