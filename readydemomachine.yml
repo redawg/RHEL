@@ -1,7 +1,7 @@
 ---
 - name: Ready Clean Machine for demo
   hosts: all
-  gather_facts: true
+  gather_facts: false
   vars:
      username: ''
      password: ''
@@ -43,7 +43,7 @@
 
 - name: Continue deploying baseline on Hosts that are up!
   hosts: running_hosts
-
+  gather_facts: true
   tasks:
       # Make the start time available to other playbooks
     - name: Capture the subscription_time
