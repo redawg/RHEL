@@ -41,7 +41,7 @@
       register: subscription_time_pre
       run_once: true
 
-- name: Gather facts from running_hosts
+- name: Continue deploying baseline on Hosts that are up!
   hosts: running_hosts
 
   tasks:
