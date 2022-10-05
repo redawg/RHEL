@@ -146,10 +146,11 @@
     - name: Install cockpit for RHEL8 RHUI AWS and Start it
       block:
         - name: Install cockpit
-          yum:
+          ansible.builtin.yum:
             name:
               -  cockpit
-          state: present    # Gather the start time to use in a later playbook
+            state: present    
+
         - name: Create Cockpit username / password
           ansible.builtin.user:
             name: cockpitadmin
@@ -157,13 +158,11 @@
             comment: Demo Cockpit admin
             group: adm
 
-
         - name: Start cockpit service
           ansible.builtin.service:
             name: cockpit
             enabled: yes
             state: started
-
       when:
         - ansible_distribution == "RedHat"
         - ansible_distribution_major_version == "8"
