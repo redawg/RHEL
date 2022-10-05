@@ -147,8 +147,8 @@
       block:
         - name: Install cockpit
           yum:
-          name:
-            -  cockpit
+            name:
+              -  cockpit
           state: present    # Gather the start time to use in a later playbook
         - name: Create Cockpit username / password
           ansible.builtin.user:
