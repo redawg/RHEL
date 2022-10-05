@@ -143,16 +143,32 @@
 #        state: disabled
 #      notify:
 #       - Reboot needed
-    - name: Install cockpit for RHEL8 RHUI AWS
-      yum:
-        name:
-          -  cockpit
-        state: present    # Gather the start time to use in a later playbook
+    - name: Install cockpit for RHEL8 RHUI AWS and Start it
+      block:
+        - name: Install cockpit
+          yum:
+          name:
+            -  cockpit
+          state: present    # Gather the start time to use in a later playbook
+        - name: Create Cockpit username / password
+          ansible.builtin.user:
+            name: cockpitadmin
+            password: 'r3dh2t!'
+            comment: Demo Cockpit admin
+            group: adm
+
+
+        - name: Start cockpit service
+          ansible.builtin.service:
+            name: cockpit
+            enabled: yes
+            state: started
+
       when:
         - ansible_distribution == "RedHat"
         - ansible_distribution_major_version == "8"
         - ansible_bios_vendor == "Amazon EC2"
-        
+
     - name: Record the post_install_time
       ansible.builtin.command:
         cmd: "date '+%H:%M:%S'"
