@@ -5,6 +5,5 @@
 
   tasks:
     - name: Subscribing to RHEL account now
-      redhat_subscription:
+      ansible.builtin.redhat_subscription:
         state: absent
-        
