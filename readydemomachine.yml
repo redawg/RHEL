@@ -149,12 +149,12 @@
           ansible.builtin.yum:
             name:
               -  cockpit
-            state: present    
+            state: present
 
         - name: Create Cockpit username / password
           ansible.builtin.user:
             name: cockpitadmin
-            password: 'r3dh2t!'
+            password: $6$L/KetUarBWPSWAxy$6PKd2idlwK0rrBSCsiiXfusFbwzIgX/bZ9IEBdGJ4BdCNgGIWzysNbQifUbNn3NBsnlBoNAxj.omDFMtNvhiD/
             comment: Demo Cockpit admin
             group: adm
 
