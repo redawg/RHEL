@@ -243,6 +243,7 @@
       yum:
         name: '*'
         state: latest
+      ignore_errors: true
     # Gather the start time to use in a later playbook
 
     - name: Record the insights_time
