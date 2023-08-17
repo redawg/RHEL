@@ -20,7 +20,7 @@
 {% endfor %}
     </tbody>
 </table>
-<td>{{ filechanges | flatten }}</td>
+<td>{{ filechanges | to_nice_yaml }}</td>
 
 </body>
 </html>
