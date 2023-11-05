@@ -1,0 +1,21 @@
+---
+- name: Checking Public IP
+  hosts: local
+  gather_facts: False
+  
+  serial: 1
+  tasks:
+    - name: Check Public IP
+      ansible.builtin.uri:
+        url: http://www.canzahip.com
+        return_content: true
+      register: pubip  
+      notify: slack_alert
+  handlers:
+    - name: slack_alert
+      slack:
+        token: "{{ slack_token }}"
+        msg: 'Home public ip is {{pubip}}'
+        channel: '#controlleralertsaap2'
+        username: 'Ansible Controller'
+      when: slack_token is defined
