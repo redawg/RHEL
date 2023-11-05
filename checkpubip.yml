@@ -1,6 +1,6 @@
 ---
 - name: Checking Public IP
-  hosts: local
+  hosts: all
   gather_facts: False
   
   serial: 1
