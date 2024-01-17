@@ -1,0 +1,14 @@
+---
+- hosts: all
+  gather_facts: true
+
+  tasks:
+    - name: Check what state the service was in 
+      ansible.builtin.service_facts:
+    - name: Pause test
+      ansible.builtin.pause:
+        minutes: 20
+
+    - name: Print out Service states 
+      ansible.builtin.debug:
+        var: ansible_facts.services['nginx.service']
