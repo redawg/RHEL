@@ -1,40 +1,36 @@
-
 ---
-- name: build Linux OS report
-  hosts: all
-  gather_facts: true
+- name: Build Linux OS HTML inventory report
+  hosts: all          # Collect OS facts from every host in the inventory
+  gather_facts: true  # Required — ansible_distribution and version are used inside the Jinja2 template
 
   vars:
-    www_dir: ''
-    os_html_dir: "{{ www_dir }}"
-    os_inv_file: "{{ os_html_dir }}/osreport.html"
-
+    www_dir: ''                                         # Base web directory on the report host (passed via survey)
+    os_html_dir: "{{ www_dir }}"                        # HTML output directory — maps directly to www_dir
+    os_inv_file: "{{ os_html_dir }}/osreport.html"      # Full destination path of the generated report file
 
   tasks:
-  - name: 'Preflight Varible check :: www_dir'
-    fail: msg='Please include the www_dir to the variable "www_dir"'
-    run_once: true
-    when: 'www_dir is not defined'
-  - name: 'Preflight Varible check :: slack_token'
-    fail: msg='Please include the slack_token to the variable "slack_token"'
-    run_once: true
-    when: 'slack_token is not defined'
+    - name: Verify www_dir variable is defined
+      fail: msg='Please include the www_dir to the variable "www_dir"'
+      run_once: true                      # Only evaluate once, not once per host
+      when: 'www_dir is not defined'      # Abort immediately if the output path was not provided
 
+    - name: Verify slack_token variable is defined
+      fail: msg='Please include the slack_token to the variable "slack_token"'
+      run_once: true                      # Only evaluate once
+      when: 'slack_token is not defined'  # Abort immediately if no Slack token was provided
 
+    - name: Render HTML report from Jinja2 template and write to report host
+      template:
+        src: report-osversion.j2          # Jinja2 template that loops over hostvars to build an HTML table
+        dest: "{{ os_inv_file }}"         # Write the rendered HTML to the report file path
+      delegate_to: towerhost              # Execute on the report/container host, not the managed nodes
+      run_once: true                      # Render once after all host facts are collected
 
-
-  - name: create HTML report
-    template:
-      src: report-osversion.j2
-      dest: "{{ os_inv_file }}"
-    delegate_to: towerhost
-    run_once: true
-
-  - name: Send Alert to Slack
-    slack:
-      token: "{{ slack_token }}"
-      msg: 'OS Invetory report created http://172.16.1.25:8080/osreport.html'
-      channel: '#toweralerts'
-      username: 'Ansible Tower'
-    run_once: true
-    delegate_to: towerhost
+    - name: Send Slack notification with link to completed report
+      slack:
+        token: "{{ slack_token }}"                                           # Slack bot token for authentication
+        msg: 'OS Invetory report created http://172.16.1.25:8080/osreport.html'  # Message body with direct URL to report
+        channel: '#toweralerts'                                              # Target Slack channel
+        username: 'Ansible Tower'                                            # Display name shown in Slack
+      run_once: true                      # Post notification once, not per host
+      delegate_to: towerhost              # Send from the report host

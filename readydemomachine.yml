@@ -1,275 +1,272 @@
 ---
-- name: Ready Clean Machine for demo
+# Play 1: Test SSH connectivity, group live hosts, and record start time
+- name: Wait for hosts to be reachable and group them
   hosts: all
-  gather_facts: false
-
+  gather_facts: false  # Facts not needed yet — just testing connectivity
 
   tasks:
     - block:
-        - name: Wait for SSH connection
+        - name: Wait for SSH connection to become available
           ansible.builtin.wait_for_connection:
-            delay: 20
-            timeout: 120
+            delay: 20      # Wait 20 seconds before the first attempt — allows time for new instances to boot
+            timeout: 120   # Give up after 120 seconds if SSH never becomes available
           vars:
-            ansible_connection: ssh
+            ansible_connection: ssh  # Force SSH regardless of inventory connection setting
 
-        - name: add devices with connectivity to the "running_hosts" group
+        - name: Add reachable host to running_hosts group
           group_by:
-            key: "running_hosts"
+            key: "running_hosts"   # Hosts that pass SSH check join this group for Play 2 targeting
+
       rescue:
-        - name: Send Alert to Slack
+        - name: Alert Slack if host is unreachable
           community.general.slack:
-           token: "{{ slack_token }}"
-           msg: "Ansible failed on *({{ inventory_hostname }})* \n
+            token: "{{ slack_token }}"   # Slack bot token for authentication
+            msg: "Ansible failed on *({{ inventory_hostname }})* \n
       *Task*: {{ ansible_failed_task.name }} \n
       *Action*: {{ ansible_failed_task.action }} \n
       *Error Message*: \n ```{{ ansible_failed_result | to_nice_json }}``` "
-           channel: "{{ channel }}"
-           username: "{{ slackuser }}"
+            channel: "{{ channel }}"     # Target Slack channel
+            username: "{{ slackuser }}"  # Bot display name
           run_once: true
-          delegate_to: localhost# Gather the start time to use in a later playbook
-    - name: Record the subscription_time
-      ansible.builtin.command:
-        cmd: "date '+%H:%M:%S'"
-      delegate_to: 127.0.0.1
-      register: subscription_time_pre
-      run_once: true
+          delegate_to: localhost
 
-- name: Continue deploying baseline on Hosts that are up!
-  hosts: running_hosts
-  gather_facts: true
+    - name: Capture subscription start time for workflow stats
+      ansible.builtin.command:
+        cmd: "date '+%H:%M:%S'"   # Record current time as a string
+      delegate_to: 127.0.0.1     # Run on the AAP Controller
+      register: subscription_time_pre
+      run_once: true              # Capture once for the whole play
+
+# Play 2: Full baseline provisioning on hosts that responded to SSH
+- name: Deploy baseline configuration on reachable hosts
+  hosts: running_hosts   # Only targets hosts that passed the SSH check in Play 1
+  gather_facts: true     # Full fact collection needed for OS version conditionals
   vars:
-     username: ''
-     password: ''
-     pool_id: ''
-     systemrole: "Red Hat Enterprise Server"
-     usage: "Dev/Test"
-     sla: "Self-Support"
+    username: ''          # RHSM username (pass via AAP credential or survey)
+    password: ''          # RHSM password (pass via AAP credential or survey)
+    pool_id: ''           # RHSM subscription pool ID
+    systemrole: "Red Hat Enterprise Server"
+    usage: "Dev/Test"
+    sla: "Self-Support"
+
   tasks:
-      # Make the start time available to other playbooks
-    - name: Capture the subscription_time
+    - name: Publish subscription start time as workflow stat
       ansible.builtin.set_stats:
         data:
-          subscription_time: "{{ subscription_time_pre.stdout }}"
+          subscription_time: "{{ subscription_time_pre.stdout }}"  # Makes timestamp visible in AAP workflow output
       run_once: true
 
-    - name: Subscribing to RHEL account just for RHEL
+    - name: Subscribe to RHSM with RHEL pool only
       redhat_subscription:
         state: present
         username: "{{ username }}"
         password: "{{ password }}"
-        pool_ids: "{{ pool_id }}"
+        pool_ids: "{{ pool_id }}"       # Attach only the RHEL subscription pool
         syspurpose:
           usage: "{{ usage }}"
           role: "{{ systemrole }}"
           service_level_agreement: "{{ sla }}"
-          sync: true
-      when: ansiblenode == "false"
+          sync: true                    # Immediately sync syspurpose with RHSM
+      when: ansiblenode == "false"      # Use this path when the host is not an Ansible control node
 
-    - name: Subscribing to RHEL and Ansible subs
+    - name: Subscribe to RHSM with RHEL and Ansible pools
       redhat_subscription:
         state: present
         username: "{{username}}"
         password: "{{password}}"
         pool_ids:
-          - 8a85f99a74274534017430bc6dc26484
-          - "{{pool_id}}"
+          - 8a85f99a74274534017430bc6dc26484  # Hardcoded Ansible Engine pool ID
+          - "{{pool_id}}"                      # RHEL pool ID passed via survey
       tags:
-         - subreg
-      when: ansiblenode == "true"
+        - subreg
+      when: ansiblenode == "true"       # Use this path when the host will also run Ansible
 
-    - name: Rhel 7 specific Repos
+    - name: Configure standard RHEL 7 repositories
       block:
-        - name: Disable all Repos
+        - name: Disable all repos
           rhsm_repository:
             name: '*'
-            state: disabled
+            state: disabled             # Clear all repos before enabling only what is needed
+
         - name: Enable rhel-7-server-rpms
           rhsm_repository:
             name: rhel-7-server-rpms
             state: enabled
+
         - name: Enable rhel-7-server-extras-rpms
           rhsm_repository:
             name: rhel-7-server-extras-rpms
             state: enabled
-      #  - name: Enable rhel-server-rhscl-7-rpms
-      #    rhsm_repository:
-      #      name: rhel-server-rhscl-7-rpms
-      #      state: enabled
       when:
         - ansible_distribution == "RedHat"
-        - ansible_distribution_major_version == "7"
-    - name: Rhel 8 specific Repos
+        - ansible_distribution_major_version == "7"   # Only apply to RHEL 7 hosts
+
+    - name: Configure standard RHEL 8 repositories
       block:
-        - name: Disable all Repos
+        - name: Disable all repos
           rhsm_repository:
-              name: '*'
-              state: disabled
+            name: '*'
+            state: disabled
+
         - name: Enable rhel-8-for-x86_64-baseos-rpms
           rhsm_repository:
-              name: rhel-8-for-x86_64-baseos-rpms
-              state: enabled
+            name: rhel-8-for-x86_64-baseos-rpms
+            state: enabled
+
         - name: Enable rhel-8-for-x86_64-appstream-rpms
           rhsm_repository:
-              name: rhel-8-for-x86_64-appstream-rpms
-              state: enabled
+            name: rhel-8-for-x86_64-appstream-rpms
+            state: enabled
+
         - name: Enable ansible-2.9-for-rhel-8-x86_64-rpms
           rhsm_repository:
-              name: ansible-2.9-for-rhel-8-x86_64-rpms
-              state: enabled
-          #  - name: Enable rhel-server-rhscl-7-rpms
-          #    rhsm_repository:
-          #      name: rhel-server-rhscl-7-rpms
-          #      state: enabled
+            name: ansible-2.9-for-rhel-8-x86_64-rpms
+            state: enabled
       when:
         - ansible_distribution == "RedHat"
         - ansible_distribution_major_version == "8"
-        - ansible_bios_vendor != "Amazon EC2"
+        - ansible_bios_vendor != "Amazon EC2"   # Skip on RHEL 8 AWS RHUI instances — they use RHUI repos instead
 
-    - name: Copy DNS Hosts file for local server from http
+    - name: Fetch local hosts file from lab web server
       ansible.builtin.get_url:
-        url: http://172.16.1.25:8080/hosts
+        url: http://172.16.1.25:8080/hosts   # Internal lab server serving a custom /etc/hosts file
         dest: /etc/hosts
         owner: root
         group: root
         mode: '0644'
-        validate_certs: no
-      when: ansible_default_ipv4.address is search("172.16.1*")
+        validate_certs: no                   # Skip TLS validation — internal HTTP endpoint
+      when: ansible_default_ipv4.address is search("172.16.1*")  # Only apply to hosts on the lab subnet
       tags:
         - copyhost
-#    - name: Disable SElinux
-#      selinux:
-#        policy: targeted
-#        state: disabled
-#      notify:
-#       - Reboot needed
-    - name: Install cockpit for RHEL8 RHUI AWS and Start it
+
+    - name: Install and configure Cockpit on RHEL 8 AWS instances
       block:
-        - name: Install cockpit
+        - name: Install cockpit package
           ansible.builtin.yum:
-            name:
-              -  cockpit
+            name: cockpit
             state: present
 
-        - name: Create Cockpit username / password
+        - name: Create Cockpit demo admin user
           ansible.builtin.user:
             name: cockpitadmin
             password: $6$L/KetUarBWPSWAxy$6PKd2idlwK0rrBSCsiiXfusFbwzIgX/bZ9IEBdGJ4BdCNgGIWzysNbQifUbNn3NBsnlBoNAxj.omDFMtNvhiD/
             comment: Demo Cockpit admin
-            group: adm
+            group: adm   # Add to adm group so the user can view system logs in Cockpit
 
-        - name: Start cockpit service
+        - name: Start and enable Cockpit service
           ansible.builtin.service:
             name: cockpit
-            enabled: yes
+            enabled: yes   # Start on boot
             state: started
       when:
         - ansible_distribution == "RedHat"
         - ansible_distribution_major_version == "8"
-        - ansible_bios_vendor == "Amazon EC2"
+        - ansible_bios_vendor == "Amazon EC2"   # Only configure Cockpit on RHEL 8 AWS instances
 
-    - name: Record the post_install_time
+    - name: Record post-install timestamp for workflow stats
       ansible.builtin.command:
         cmd: "date '+%H:%M:%S'"
       delegate_to: 127.0.0.1
       register: post_install_time_pre
       run_once: true
-    # Make the start time available to other playbooks
-    - name: Capture the post_install_time
+
+    - name: Publish post-install time as workflow stat
       ansible.builtin.set_stats:
         data:
-          post_install_time: "{{ post_install_time_pre.stdout }}"
+          post_install_time: "{{ post_install_time_pre.stdout }}"  # Visible in AAP workflow output
       run_once: true
 
-    - name: Copy the sshd-banner file into place
+    - name: Deploy SSH login banner file
       ansible.builtin.copy:
-        src: files/sshd-banner
+        src: files/sshd-banner    # Banner text file from the project repo
         dest: /etc/ssh/sshd-banner
         owner: root
         group: root
-        mode: u+rw,g-wx,o-wx
+        mode: u+rw,g-wx,o-wx     # Owner read-write; group and other write denied
 
-    - name: Updating the sshd_config file to show the new banner
+    - name: Configure sshd to display the banner on login
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         state: present
-        regexp: '^#Banner none'
-        line: 'Banner /etc/ssh/sshd-banner'
-    - name: Copy the new /etc/motd into place
+        regexp: '^#Banner none'   # Find the commented-out default Banner line
+        line: 'Banner /etc/ssh/sshd-banner'  # Replace with the path to the new banner file
+
+    - name: Deploy /etc/motd (message of the day)
       ansible.builtin.copy:
-        src: files/motd
+        src: files/motd           # MOTD file from the project repo
         dest: /etc/motd
         owner: root
         group: root
         mode: u+rw,g-wx,o-wx
 
-    - name: Copy the new /etc/issue into place
+    - name: Deploy /etc/issue (pre-login message)
       ansible.builtin.copy:
-        src: files/issue
+        src: files/issue          # Issue file from the project repo
         dest: /etc/issue
         owner: root
         group: root
         mode: u+rw,g-wx,o-wx
 
-    - name: Get rid of the cockpit.socket message
+    - name: Suppress Cockpit socket message in MOTD
       ansible.builtin.file:
         src: /dev/null
-        dest: /etc/motd.d/cockpit
+        dest: /etc/motd.d/cockpit  # Symlink the Cockpit MOTD fragment to /dev/null to silence it
         owner: root
         group: root
         state: link
-      when: "ansible_distribution_release != 'Maipo'"
+      when: "ansible_distribution_release != 'Maipo'"  # Skip on RHEL 7 (Maipo) — path doesn't exist there
 
-    - name: Get rid of the insights client message
+    - name: Suppress Insights client message in MOTD
       ansible.builtin.file:
         src: /dev/null
-        dest: /etc/motd.d/insights-client
+        dest: /etc/motd.d/insights-client  # Symlink the Insights MOTD fragment to /dev/null to silence it
         owner: root
         group: root
         state: link
-      when: "ansible_distribution_release != 'Maipo'"
+      when: "ansible_distribution_release != 'Maipo'"  # Skip on RHEL 7
 
-    - name: Install My packages I want (insights/net-tools/wget)
+    - name: Install baseline packages
       yum:
         name:
-          -  insights-client
-          -  net-tools
-          -  wget
-          -  mlocate
-          -  nc
-          -  telnet
+          - insights-client   # Red Hat Insights agent
+          - net-tools          # Provides ifconfig, netstat, etc.
+          - wget               # HTTP/FTP download utility
+          - mlocate            # Fast file locate database
+          - nc                 # Netcat — network debugging and testing
+          - telnet             # Basic TCP connectivity testing
         state: present
-    - name: Upgrading all Packages to Latest
-      yum:
-        name: '*'
-        state: latest
-      ignore_errors: true
-    # Gather the start time to use in a later playbook
 
-    - name: Record the insights_time
+    - name: Upgrade all packages to latest
+      yum:
+        name: '*'         # Update every installed package
+        state: latest
+      ignore_errors: true  # Continue provisioning even if some packages fail to update
+
+    - name: Record Insights registration timestamp for workflow stats
       ansible.builtin.command:
         cmd: "date '+%H:%M:%S'"
       delegate_to: 127.0.0.1
       register: insights_time_pre
       run_once: true
-    # Make the start time available to other playbooks
-    - name: Capture the insights_time
+
+    - name: Publish Insights registration time as workflow stat
       ansible.builtin.set_stats:
         data:
           insights_time: "{{ insights_time_pre.stdout }}"
       run_once: true
 
-    - name: Running insights register
-      command: insights-client --register
+    - name: Register host with Red Hat Insights
+      command: insights-client --register   # Uploads initial system data to the Insights portal
       register: register_output
       tags:
         - reginsights
-    - name: Display Register
+
+    - name: Display Insights registration output
       debug:
-        msg: "{{ register_output }}"
+        msg: "{{ register_output }}"        # Print registration confirmation or error to the job log
       tags:
         - reginsights
 
   handlers:
     - name: Reboot needed
-      reboot:
+      reboot:   # Triggered if a task notifies this handler (e.g. SELinux mode change — currently commented out)

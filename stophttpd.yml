@@ -1,11 +1,10 @@
 ---
-- name: Stoping HTTPD service
+- name: Stop Apache httpd service
   hosts: all
-  gather_facts: False
-
+  gather_facts: False  # Facts not needed — service management only requires the service name
 
   tasks:
-  - name: Stop service httpd to cause Dyantrace problem
-    ansible.builtin.service:
-      name: httpd
-      state: stopped
+    - name: Stop httpd service
+      ansible.builtin.service:
+        name: httpd      # The Apache HTTP Server service
+        state: stopped   # Stop the service if it is currently running — used in demos to trigger a Dynatrace problem alert

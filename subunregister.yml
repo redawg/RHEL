@@ -1,9 +1,10 @@
 ---
-- name: Subscribe RHEL to Account
+- name: Unregister RHEL host from Red Hat Subscription Manager
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — unregistration is a single module call
 
   tasks:
-    - name: Subscribing to RHEL account now
+    - name: Remove RHSM subscription and unregister host
       ansible.builtin.redhat_subscription:
-        state: absent
+        state: absent   # Unregisters the host from RHSM and removes all attached subscriptions
+                        # Run this before decommissioning or re-provisioning a host to free the entitlement

@@ -1,37 +1,35 @@
 ---
-- name: Check file diff
-  hosts: all
-  gather_facts: False
-
+- name: Check file diff against golden config — report only, no changes applied
+  hosts: all           # Run against all hosts in the inventory
+  gather_facts: False  # Facts not needed for file comparison
 
   tasks:
-    - name: Grab Repo with source file
+    - name: Clone golden config repository to AAP Controller
       git:
-        repo: "{{ sourcefilerepo }}"
-        dest: /tmp/demo
-        accept_hostkey: yes
-        force: yes
-      delegate_to: 127.0.0.1
-      run_once: true
+        repo: "{{ sourcefilerepo }}"  # URL of the git repo containing the authoritative source config files
+        dest: /tmp/demo               # Clone destination on the AAP Controller
+        accept_hostkey: yes           # Automatically accept the SSH host key — prevents interactive prompt
+        force: yes                    # Always overwrite /tmp/demo to ensure a clean, up-to-date clone
+      delegate_to: 127.0.0.1         # Run the git clone locally on the AAP Controller, not the managed host
+      run_once: true                  # Clone only once regardless of how many hosts are targeted
 
-    - name: Check for variance in File
+    - name: Diff golden config against live file — check mode only, no changes written
       copy:
-        src: "/tmp/demo/{{ file2comp }}"
-        dest: "/etc/{{ file2comp }}"
-      check_mode: yes
-      diff: yes
-      register : filechanges
+        src: "/tmp/demo/{{ file2comp }}"  # Source: the golden copy from the repo (e.g. /tmp/demo/resolv.conf)
+        dest: "/etc/{{ file2comp }}"      # Destination path on the remote host — checked but not modified
+      check_mode: yes                     # Dry-run mode — calculates what would change without applying anything
+      diff: yes                           # Output a unified diff in the job log showing any variance
+      register: filechanges               # Store the result so downstream tasks can act on whether drift was found
 
-    - name: stat check_mode
+    - name: Collect file metadata if drift was detected
       stat:
-        path: "/etc/{{ file2comp }}"
-      when: filechanges.changed == true
-      register: statvar
+        path: "/etc/{{ file2comp }}"      # Inspect the live file on the remote host
+      when: filechanges.changed == true   # Only run when check_mode detected a difference
+      register: statvar                   # Store file metadata (size, checksum, permissions) for reporting
 
-        
-    - name: print file data to html
+    - name: Render diff output to HTML report on container host
       copy:
-        content: "{{ lookup('template', './filedata.j2') }}"
-        dest: "{{ home_dir }}/reports/{{ inventory_hostname }}.html"
-      ignore_errors: yes
-      delegate_to: "{{ container_host }}"
+        content: "{{ lookup('template', './filedata.j2') }}"     # Render the filedata Jinja2 template with diff results
+        dest: "{{ home_dir }}/reports/{{ inventory_hostname }}.html"  # Write one HTML file per host to the reports directory
+      ignore_errors: yes                  # Continue even if writing the report fails (e.g. container host unreachable)
+      delegate_to: "{{ container_host }}" # Write the report to the container/web host, not the managed node

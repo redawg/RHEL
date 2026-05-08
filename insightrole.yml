@@ -1,10 +1,13 @@
 ---
-- name: Assigning Insight Role to Servers
+- name: Register hosts with Red Hat Insights using the insights-client role
   hosts: all
+  # gather_facts defaults to true — needed to evaluate ansible_os_family and ansible_distribution_major_version
+
   tasks:
-    - include_role:
-        name: RedHatInsights.insights-client
-      tags: ['insights']
+    - name: Apply RedHatInsights.insights-client role
+      include_role:
+        name: RedHatInsights.insights-client  # Official Red Hat Insights role — handles install, config, and registration
+      tags: ['insights']                       # Tag allows this task to be run selectively with --tags insights
       when:
-        - ansible_os_family == "RedHat"
-        - ansible_distribution_major_version > "5"
+        - ansible_os_family == "RedHat"                   # Only run on Red Hat family OS (RHEL, CentOS, Fedora)
+        - ansible_distribution_major_version > "5"        # Insights client requires RHEL 6 or higher

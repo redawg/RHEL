@@ -1,12 +1,11 @@
 ---
-- name: Getting authorized_key
-  hosts: all
-  gather_facts: False
-
+- name: Deploy SSH authorized key to user account
+  hosts: all           # Run against all hosts in the inventory
+  gather_facts: False  # Facts not needed — key deployment only requires the target username
 
   tasks:
-    - name: Set authorized key taken from file
+    - name: Add SSH public key to authorized_keys for target user
       authorized_key:
-        user: "{{ key_user }}"
-        state: present
-        key: "{{lookup('file', '/home/sshkey/redpub')}}"
+        user: "{{ key_user }}"                            # Target user account to receive the key (passed via survey)
+        state: present                                    # Ensure the key exists — idempotent, won't duplicate if already present
+        key: "{{lookup('file', '/home/sshkey/redpub')}}" # Read the public key from this path on the AAP Controller at runtime

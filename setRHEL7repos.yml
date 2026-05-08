@@ -1,24 +1,27 @@
 ---
-- name: Set Default Repos for RHEL 7
+- name: Configure standard RHEL 7 repositories
   hosts: all
-  gather_facts: True
-  vars:
+  gather_facts: True   # Required — ansible_distribution and ansible_distribution_major_version drive the when condition
+  vars:                # Placeholder — add any override vars here if needed
 
   tasks:
-    - name: Rhel 7 specific Repos
+    - name: Apply standard RHEL 7 repository configuration
       block:
-        - name: Disable all Repos
+        - name: Disable all currently enabled repositories
           rhsm_repository:
-            name: '*'
-            state: disabled
+            name: '*'          # Wildcard matches all repos
+            state: disabled    # Clean slate — prevents conflicts from previously enabled non-standard repos
+
         - name: Enable rhel-7-server-rpms
           rhsm_repository:
-            name: rhel-7-server-rpms
+            name: rhel-7-server-rpms   # Core RHEL 7 base packages
             state: enabled
+
         - name: Enable rhel-7-server-extras-rpms
           rhsm_repository:
-            name: rhel-7-server-extras-rpms
+            name: rhel-7-server-extras-rpms  # Additional tools and utilities for RHEL 7
             state: enabled
+
       when:
-        - ansible_distribution == "RedHat"
-        - ansible_distribution_major_version == "7"
+        - ansible_distribution == "RedHat"         # Only run on genuine RHEL (not CentOS or other derivatives)
+        - ansible_distribution_major_version == "7"  # Restrict to RHEL 7 — prevents accidental repo changes on RHEL 8/9

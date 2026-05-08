@@ -1,27 +1,28 @@
 ---
-- name: Create the Ansible service account on target hosts
+- name: Create Ansible service account on target hosts
   hosts: all
-  gather_facts: True
+  gather_facts: True   # Facts needed to resolve platform-specific paths if required
+
   tasks:
-    - name: service account is present
+    - name: Create the service account user
       user:
-        name: "{{ svcansible_username }}"
-        home: "{{ svcansible_home }}/{{ svcansible_username }}"
-        comment: Service account for Ansible
-        state: present
-        system: True
+        name: "{{ svcansible_username }}"                    # Username for the new service account (passed via survey)
+        home: "{{ svcansible_home }}/{{ svcansible_username }}"  # Home directory path built from base path + username
+        comment: Service account for Ansible               # GECOS field — describes the account purpose
+        state: present                                      # Create if not present; idempotent
+        system: True                                        # Mark as a system account (UID < 1000, no login shell by default)
 
-    - name: The public key for the service account is present
+    - name: Deploy SSH public key for the service account
       authorized_key:
-        user: "{{ svcansible_username }}"
-        state: present
-        key: "{{ svcansible_public_key }}"
+        user: "{{ svcansible_username }}"    # Add the key to this user's authorized_keys file
+        state: present                       # Ensure the key is present — won't duplicate if run again
+        key: "{{ svcansible_public_key }}"   # The SSH public key string (passed via survey or credential)
 
-    - name: svcansible is included in sudoers.d
+    - name: Grant passwordless sudo access to service account
       copy:
-        dest: "/etc/sudoers.d/{{ svcansible_username }}"
-        content: "{{ svcansible_username }} ALL=(ALL) NOPASSWD: ALL\n"
+        dest: "/etc/sudoers.d/{{ svcansible_username }}"         # Drop a dedicated sudoers file for this account
+        content: "{{ svcansible_username }} ALL=(ALL) NOPASSWD: ALL\n"  # Allow all commands without password prompt
         owner: root
         group: root
-        mode: 'ug+rwX,o='
-      when: svcansible_sudoer == 'true'
+        mode: 'ug+rwX,o='                    # Owner/group read-write; no permissions for others (sudoers security requirement)
+      when: svcansible_sudoer == 'true'      # Only add sudo rule if explicitly requested via survey

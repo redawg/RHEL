@@ -1,40 +1,42 @@
 ---
- - name: Checking for up hosts
-   hosts: all
-   gather_facts: False
+- name: Test SSH connectivity and group reachable hosts
+  hosts: all           # Attempt to connect to every host in the inventory
+  gather_facts: False  # Facts not needed for the connectivity check
 
-   tasks:
-     - block:
-         - name: determine hosts that are up
-           wait_for_connection:
-             timeout: 5
-           vars:
-             ansible_connection: ssh
+  tasks:
+    - block:
+        - name: Test SSH connectivity to host
+          wait_for_connection:
+            timeout: 5             # Wait up to 5 seconds for an SSH connection — fail fast if host is down
+          vars:
+            ansible_connection: ssh  # Force SSH connection type regardless of inventory default
 
-         - name: add devices with connectivity to the "running_hosts" group
-           group_by:
-             key: "running_hosts"
-       rescue:
-         - name: Send Alert to Slack
-           community.general.slack:
-            token: "{{ slack_token }}"
+        - name: Add reachable host to the running_hosts group
+          group_by:
+            key: "running_hosts"   # Hosts that pass the connection test are added to this dynamic group
+                                   # Downstream plays can then target 'running_hosts' to skip unreachable nodes
+      rescue:
+        - name: Send Slack alert for unreachable host
+          community.general.slack:
+            token: "{{ slack_token }}"   # Slack bot token for authentication
             msg: "Ansible failed on *({{ inventory_hostname }})* \n
        *Task*: {{ ansible_failed_task.name }} \n
        *Action*: {{ ansible_failed_task.action }} \n
        *Error Message*: \n ```{{ ansible_failed_result | to_nice_json }}``` "
-            channel: "{{ channel }}"
-            username: "{{ slackuser }}"
-           run_once: true
-           delegate_to: localhost
+            channel: "{{ channel }}"     # Slack channel to post the alert into
+            username: "{{ slackuser }}"  # Display name for the Slack bot message
+          run_once: true                 # Send one alert per failed host, not multiple messages
+          delegate_to: localhost         # Send the Slack message from the AAP Controller
 
- - name: Gather facts from running_hosts
-   hosts: running_hosts
-   gather_facts: True
+- name: Gather full facts from hosts that are reachable
+  hosts: running_hosts   # Only runs against hosts that passed the SSH check above
+  gather_facts: True     # Collect all Ansible facts now that connectivity is confirmed
 
-   tasks:
-     - name: Facts
-       ansible.builtin.setup:
-       register: all_facts
-     - name: Facts Debug
-       ansible.builtin.debug:
-         var: all_facts
+  tasks:
+    - name: Collect all system facts
+      ansible.builtin.setup:       # Explicitly trigger fact gathering (also triggered by gather_facts: True)
+      register: all_facts          # Store the complete fact dictionary for inspection
+
+    - name: Display collected facts
+      ansible.builtin.debug:
+        var: all_facts             # Print all facts to the job output for review

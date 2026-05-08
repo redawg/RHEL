@@ -1,12 +1,13 @@
 ---
-- name: Installing requested package
+- name: Install package using dnf
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — package name is passed directly via survey
   vars:
-      package: ''
-  serial: 1
+    package: ''        # Name of the package to install (must be provided via survey or extra vars)
+  serial: 1            # Install on one host at a time — reduces risk of simultaneous failures across inventory
+
   tasks:
-    - name: Install {{package}}
+    - name: Install {{ package }} via dnf
       dnf:
-        name: "{{package}}"
-        state: present
+        name: "{{package}}"   # Package name provided at runtime via the survey variable
+        state: present        # Ensure the package is installed — idempotent, skips if already present

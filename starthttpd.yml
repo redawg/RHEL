@@ -1,11 +1,10 @@
 ---
-- name: Restarting HTTPD service
+- name: Start Apache httpd service
   hosts: all
-  gather_facts: False
-
+  gather_facts: False  # Facts not needed — service management only requires the service name
 
   tasks:
-  - name: Start service httpd, if not started
-    ansible.builtin.service:
-      name: httpd
-      state: started
+    - name: Ensure httpd service is started
+      ansible.builtin.service:
+        name: httpd      # The Apache HTTP Server service
+        state: started   # Start the service if it is not already running — idempotent, does nothing if already up

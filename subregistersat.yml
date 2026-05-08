@@ -1,26 +1,26 @@
 ---
-- name: Subscribe RHEL to Satellite
+- name: Register RHEL host with Red Hat Satellite
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — all required values are passed as variables
   vars:
-     pool_id: ''
-     org: ''
-     activationkey: ''
-     server_hostname: ''
-     systemrole: "Red Hat Enterprise Server"
-     usage: "Dev/Test"
-     sla: "Self-Support"
+    pool_id: ''           # Subscription pool ID (optional when using activation keys)
+    org: ''               # Satellite organization ID
+    activationkey: ''     # Satellite activation key — defines repos, content views, and subscriptions
+    server_hostname: ''   # FQDN of the Satellite server
+    systemrole: "Red Hat Enterprise Server"
+    usage: "Dev/Test"
+    sla: "Self-Support"
 
   tasks:
-    - name: Subscribing to RHEL account now
+    - name: Subscribe host to Satellite using activation key
       redhat_subscription:
-        state: present
-        server_hostname: "{{server_hostname}}"
-        org_id: "{{org}}"
-        activationkey: "{{activationkey}}"
-        pool: '^Red Hat Enterprise Server$'
+        state: present                        # Register and attach — idempotent if already registered
+        server_hostname: "{{server_hostname}}"  # Point subscription-manager at the Satellite server instead of RHSM
+        org_id: "{{org}}"                     # Satellite organization to register under
+        activationkey: "{{activationkey}}"    # Activation key assigns repos, content views, and lifecycle environment
+        pool: '^Red Hat Enterprise Server$'   # Regex to match the correct pool by name on Satellite
         syspurpose:
-          usage: "{{usage}}"
-          role: "{{systemrole}}"
-          service_level_agreement: "{{sla}}"
-          sync: true
+          usage: "{{usage}}"                          # Intended workload type
+          role: "{{systemrole}}"                      # System role reported to Satellite
+          service_level_agreement: "{{sla}}"          # SLA tier for this system
+          sync: true                                  # Immediately sync syspurpose with Satellite

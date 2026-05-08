@@ -1,25 +1,24 @@
 ---
-- name: Subscribe RHEL to Account
+- name: Register RHEL host with Red Hat Subscription Manager
   hosts: all
-  gather_facts: true
+  gather_facts: true   # Required — syspurpose sync may need OS facts; also useful for conditional logic
   vars:
-     username: ''
-     password: ''
-     pool_id: ''
-     systemrole: "Red Hat Enterprise Server"
-     usage: "Dev/Test"
-     sla: "Self-Support"
+    username: ''        # RHSM username (pass via AAP credential or survey)
+    password: ''        # RHSM password (pass via AAP credential or survey)
+    pool_id: ''         # Subscription pool ID to attach (from subscription-manager list --available)
+    systemrole: "Red Hat Enterprise Server"  # System purpose role — reported to RHSM
+    usage: "Dev/Test"                        # System purpose usage — reported to RHSM
+    sla: "Self-Support"                      # System purpose SLA — reported to RHSM
 
   tasks:
-    - name: Subscribing to RHEL account now
+    - name: Subscribe host to RHSM and attach pool
       redhat_subscription:
-        state: present
-        username: "{{username}}"
-        password: "{{password}}"
-        pool_ids: "{{pool_id}}"
+        state: present             # Register and attach — idempotent if already registered
+        username: "{{username}}"   # RHSM portal username
+        password: "{{password}}"   # RHSM portal password
+        pool_ids: "{{pool_id}}"    # Specific pool to attach (ensures the right entitlement is used)
         syspurpose:
-          usage: "{{usage}}"
-          role: "{{systemrole}}"
-          service_level_agreement: "{{sla}}"
-          sync: true
-  
+          usage: "{{usage}}"                       # Intended workload type (Dev/Test, Production, etc.)
+          role: "{{systemrole}}"                   # System role reported to RHSM for usage tracking
+          service_level_agreement: "{{sla}}"       # SLA tier for this system
+          sync: true                               # Immediately sync syspurpose data with the RHSM server

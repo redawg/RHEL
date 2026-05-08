@@ -1,30 +1,32 @@
 ---
-- name: Set Default Repos for RHEL 7
+- name: Configure Satellite 6.7 repositories for RHEL 7
   hosts: all
-  gather_facts: True
-  vars:
+  gather_facts: True   # Required — ansible_distribution and major_version drive the when condition
+  vars:                # Placeholder — add any override vars here if needed
 
   tasks:
-    - name: Rhel 7 specific Repos
+    - name: Apply Satellite 6.7 repository configuration for RHEL 7
       block:
-        - name: Disable all Repos
+        - name: Disable all currently enabled repositories
           rhsm_repository:
-            name: '*'
-            state: disabled
-        - name: Satellite Repos needed
+            name: '*'          # Wildcard matches all repos
+            state: disabled    # Clear all repos before enabling the specific Satellite set
+
+        - name: Enable required Satellite 6.7 repositories
           rhsm_repository:
             name:
-             - rhel-7-server-rpms
-             - rhel-7-server-satellite-6.7-rpms
-             - rhel-server-rhscl-7-rpms
-             - rhel-7-server-satellite-maintenance-6-rpms
-             - rhel-7-server-ansible-2.9-rpms
+              - rhel-7-server-rpms                        # Core RHEL 7 base packages
+              - rhel-7-server-satellite-6.7-rpms           # Satellite 6.7 server packages
+              - rhel-server-rhscl-7-rpms                   # Red Hat Software Collections for RHEL 7
+              - rhel-7-server-satellite-maintenance-6-rpms # Satellite maintenance packages
+              - rhel-7-server-ansible-2.9-rpms             # Ansible 2.9 for RHEL 7 (required by Satellite)
             state: enabled
-        - name: Yum Clean
-          command: yum clean metadata
+
+        - name: Clear yum metadata cache after repo changes
+          command: yum clean metadata   # Forces yum to fetch fresh metadata from the newly enabled repos
           args:
-            warn: no
-        
+            warn: no                    # Suppress the warning about using command instead of the yum module
+
       when:
-        - ansible_distribution == "RedHat"
-        - ansible_distribution_major_version == "7"
+        - ansible_distribution == "RedHat"           # Only run on genuine RHEL
+        - ansible_distribution_major_version == "7"  # Restrict to RHEL 7 only

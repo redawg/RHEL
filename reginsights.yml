@@ -1,11 +1,13 @@
 ---
-- name: Register System to Insights
+- name: Register hosts with Red Hat Insights
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — registration is a single command call
+
   tasks:
-    - name: Running insights register
-      command: insights-client --register
-      register: register_output
-    - name: Display Register
+    - name: Run insights-client to register host with Insights
+      command: insights-client --register   # Registers the host with Red Hat Insights and uploads initial system data
+      register: register_output             # Capture the command output (confirmation message or errors)
+
+    - name: Display registration output
       debug:
-        msg: "{{ register_output }}"
+        msg: "{{ register_output }}"        # Print the full registration response to the job log for verification

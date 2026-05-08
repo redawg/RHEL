@@ -1,10 +1,12 @@
 ---
-- hosts: all
-  gather_facts: true
+- hosts: all          # Run against all hosts in the inventory
+  gather_facts: true  # Facts collected in case they are needed by downstream handlers
+
   tasks:
-    - name: Rollback Last update
-      command: yum -y history rollback "last-1"
-      register: my_release
+    - name: Roll back the last yum transaction
+      command: yum -y history rollback "last-1"  # Reverts the most recent yum install/update to the previous state
+      register: my_release                        # Capture stdout so the result can be displayed below
+
     - debug:
-        var:  my_release.stdout_lines
-      with_items: groups ['ALL']
+        var: my_release.stdout_lines   # Print each line of the rollback output to the job log
+      with_items: groups ['ALL']       # Loop context — debug output is already per-host; this ensures all hosts are covered

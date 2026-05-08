@@ -1,21 +1,22 @@
 ---
-- name: Checking Public IP
-  hosts: all
-  gather_facts: False
-  
-  serial: 1
+- name: Check public IP address of each host
+  hosts: all           # Run against all hosts in the inventory
+  gather_facts: False  # Facts not needed — only an outbound HTTP request is made
+  serial: 1            # Run one host at a time so each host's IP is reported individually
+
   tasks:
-    - name: Check Public IP
+    - name: Query external service to determine host public IP
       ansible.builtin.uri:
-        url: http://www.canzahip.com
-        return_content: true
-      register: pubip  
-      notify: slack_alert
+        url: http://www.canzahip.com  # External service that returns the caller's public IP address
+        return_content: true          # Include the response body in the registered result
+      register: pubip                 # Store the full HTTP response including the public IP in the body
+      notify: slack_alert             # Trigger the Slack handler after a successful response
+
   handlers:
     - name: slack_alert
       slack:
-        token: "{{ slack_token }}"
-        msg: 'Home public ip is {{pubip}}'
-        channel: '#controlleralertsaap2'
-        username: 'Ansible Controller'
-      when: slack_token is defined
+        token: "{{ slack_token }}"                # Slack bot token for authentication
+        msg: 'Home public ip is {{pubip}}'        # Post the full response (contains the IP) to Slack
+        channel: '#controlleralertsaap2'          # Target Slack channel
+        username: 'Ansible Controller'            # Display name for the bot message
+      when: slack_token is defined                # Only send if a Slack token was provided — makes Slack optional

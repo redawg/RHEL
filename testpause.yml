@@ -1,14 +1,16 @@
 ---
 - hosts: all
-  gather_facts: true
+  gather_facts: true   # Required — service facts need gather_facts enabled before ansible.builtin.service_facts runs
 
   tasks:
-    - name: Check what state the service was in 
-      ansible.builtin.service_facts:
-    - name: Pause test
-      ansible.builtin.pause:
-        minutes: 20
+    - name: Collect current service states
+      ansible.builtin.service_facts:   # Populates ansible_facts.services with status of all systemd units on the host
 
-    - name: Print out Service states 
+    - name: Pause execution for 20 minutes
+      ansible.builtin.pause:
+        minutes: 20   # Holds the play here for 20 minutes — used to simulate a delay during demos
+                      # or to allow time to inspect system state mid-workflow before continuing
+
+    - name: Display nginx service state after pause
       ansible.builtin.debug:
-        var: ansible_facts.services['nginx.service']
+        var: ansible_facts.services['nginx.service']  # Prints state, status, and source of the nginx systemd unit

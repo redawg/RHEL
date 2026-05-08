@@ -1,37 +1,39 @@
 ---
-- name: Slack Messages Playbook
+- name: Send Slack alert for failed Ansible task
   hosts: all
-  connection: network_cli
-  gather_facts: no
-
+  connection: network_cli  # Use network_cli connection — retained for compatibility with network device inventories
+  gather_facts: no         # Facts not needed — alert uses pre-populated failure variables
 
   tasks:
-    - name: 'Preflight Varible check :: slack_token'
+    - name: Verify slack_token variable is defined
       fail: msg='Please include the slack_token to the variable "slack_token"'
-      run_once: true
-      when: 'slack_token is not defined'
-    - name: 'Preflight Varible check :: message'
+      run_once: true                      # Check once, not per host
+      when: 'slack_token is not defined'  # Abort if no Slack token was provided
+
+    - name: Verify message variable is defined
       fail: msg='Please include the message to the variable "message"'
       run_once: true
-      when: 'message is not defined'
-    - name: 'Preflight Varible check :: channel'
+      when: 'message is not defined'      # Abort if no message text was provided
+
+    - name: Verify channel variable is defined
       fail: msg='Please include the channel to the variable "channel"'
       run_once: true
-      when: 'channel is not defined'
-    - name: 'Preflight Varible check :: slackuser'
+      when: 'channel is not defined'      # Abort if no target channel was provided
+
+    - name: Verify slackuser variable is defined
       fail: msg='Please include the slackuser to the variable "slackuser"'
       run_once: true
-      when: 'slackuser is not defined'
+      when: 'slackuser is not defined'    # Abort if no bot display name was provided
 
-
-    - name: Send Alert to Slack
+    - name: Post failed task details to Slack
       slack:
-       token: "{{ slack_token }}"
-       msg: "Ansible failed on *{{ ansible_hostname }} ({{ inventory_hostname }})* \n
+        token: "{{ slack_token }}"        # Slack bot token for authentication
+        msg: "Ansible failed on *{{ ansible_hostname }} ({{ inventory_hostname }})* \n
     *Task*: {{ ansible_failed_task.name }} \n
     *Action*: {{ ansible_failed_task.action }} \n
     *Error Message*: \n ```{{ ansible_failed_result | to_nice_json }}``` "
-       channel: "{{ channel }}"
-       username: "{{ slackuser }}"
-      run_once: true
-      delegate_to: localhost
+                                          # Message includes: hostname, failed task name, module used, and full JSON error
+        channel: "{{ channel }}"          # Slack channel to post the alert into
+        username: "{{ slackuser }}"       # Display name shown in Slack for the bot message
+      run_once: true                      # Send one alert total, not one per host
+      delegate_to: localhost              # Send from the AAP Controller, not the managed host

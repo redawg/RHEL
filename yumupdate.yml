@@ -1,10 +1,10 @@
 ---
-- name: Installing requested package
+- name: Update all packages to latest version
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — yum wildcard update requires no host-specific data
 
   tasks:
-    - name: Upgrading all Modules to Latest
+    - name: Upgrade all installed packages to latest available version
       yum:
-        name: '*'
-        state: latest
+        name: '*'       # Wildcard targets every installed package on the host
+        state: latest   # Upgrade any package that has a newer version available in enabled repos

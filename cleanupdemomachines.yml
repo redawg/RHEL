@@ -1,19 +1,20 @@
 ---
-- name: Ready Clean Machine for demo
+- name: Reset demo machine — unregister Insights and remove RHSM subscription
   hosts: all
-  gather_facts: false
+  gather_facts: false  # Facts not needed — both tasks are simple command/module calls
   vars:
-     username: ''
-     password: ''
-     pool_id: ''
-     systemrole: "Red Hat Enterprise Server"
-     usage: "Dev/Test"
-     sla: "Self-Support"
+    username: ''        # RHSM username (defined here for reference; not used by these tasks directly)
+    password: ''        # RHSM password (defined here for reference; not used by these tasks directly)
+    pool_id: ''         # Pool ID (defined here for reference; not used by these tasks directly)
+    systemrole: "Red Hat Enterprise Server"
+    usage: "Dev/Test"
+    sla: "Self-Support"
 
   tasks:
-    - name: Unregistering Insights
-      command: insights-client --unregister
-      ignore_errors: yes
-    - name: Unsubscribing to RHEL account now
+    - name: Unregister host from Red Hat Insights
+      command: insights-client --unregister  # Removes this host from the Insights inventory
+      ignore_errors: yes                     # Continue even if Insights was never registered or client is missing
+
+    - name: Remove RHSM subscription
       ansible.builtin.redhat_subscription:
-        state: absent
+        state: absent                        # Unregisters the host from RHSM and removes all attached subscriptions

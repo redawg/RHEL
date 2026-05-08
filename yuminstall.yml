@@ -1,21 +1,23 @@
 ---
-- name: Installing requested package
+- name: Install package using yum
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — package name is passed directly via survey
   vars:
-      package: ''
-  serial: 1
+    package: ''        # Name of the package to install (must be provided via survey or extra vars)
+  serial: 1            # Install on one host at a time — limits blast radius if the package causes issues
+
   tasks:
-    - name: Install {{package}}
+    - name: Install {{ package }} via yum
       yum:
-        name: "{{package}}"
-        state: present
-      notify: slack_alert
+        name: "{{package}}"   # Package name provided at runtime
+        state: present        # Ensure the package is installed — idempotent, skips if already present
+      notify: slack_alert     # Trigger the Slack handler after a successful install
+
   handlers:
     - name: slack_alert
       slack:
-        token: "{{ slack_token }}"
-        msg: '{{package}} installed on {{inventory_hostname}}'
-        channel: '#controlleralertsaap2'
-        username: 'Ansible Controller'
-      when: slack_token is defined
+        token: "{{ slack_token }}"                          # Slack bot token for authentication
+        msg: '{{package}} installed on {{inventory_hostname}}'  # Confirms which package was installed and on which host
+        channel: '#controlleralertsaap2'                   # Target Slack channel for install notifications
+        username: 'Ansible Controller'                     # Display name for the bot message
+      when: slack_token is defined                         # Only send if a Slack token was provided — makes Slack optional

@@ -1,11 +1,14 @@
 ---
-- name: Register System to Insights
+- name: Unregister host from Red Hat Insights
   hosts: all
-  gather_facts: False
+  gather_facts: False  # Facts not needed — unregistration is a single command call
+
   tasks:
-    - name: Running insights register
-      command: insights-client --unregister
-      register: register_output
-    - name: Display Register
+    - name: Run insights-client to unregister host from Insights
+      command: insights-client --unregister   # Removes this host from the Red Hat Insights inventory
+                                              # Run before decommissioning or rebuilding a host
+      register: register_output               # Capture the command output (confirmation or error message)
+
+    - name: Display unregistration output
       debug:
-        msg: "{{ register_output }}"
+        msg: "{{ register_output }}"          # Print the full response to the job log for verification

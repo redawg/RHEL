@@ -1,11 +1,11 @@
 ---
-- name: Rollback recent updates, and refresh insights
+- name: Roll back last yum update and refresh Red Hat Insights
   hosts: all
-  gather_facts: True
+  gather_facts: True   # Facts collected in case handlers or downstream tasks require them
 
+  tasks:
+    - name: Roll back the last yum transaction
+      command: yum -y history rollback "last-1"  # Reverts the most recent yum install/update to the previous state
 
-  tasks: Perform rollback to previous yum state
-    - name: Yum rollback
-      command: yum -y history rollback "last-1"
-    - name: Update insights
-      command: insights-client
+    - name: Sync updated system state to Red Hat Insights
+      command: insights-client                    # Re-uploads system data to Insights so the rollback is reflected in the portal

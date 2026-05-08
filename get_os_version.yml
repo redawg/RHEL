@@ -1,10 +1,12 @@
 ---
 - hosts: all
-  gather_facts: true
+  gather_facts: true   # Facts collected for context; the task also reads the release file directly
+
   tasks:
-    - name: Return OS version to registered my_release variable
-      command: cat /etc/redhat-release
-      register: my_release
+    - name: Read OS version from /etc/redhat-release
+      command: cat /etc/redhat-release   # Reads the RHEL release string (e.g. "Red Hat Enterprise Linux 8.6")
+      register: my_release               # Store the command output for display
+
     - debug:
-        var:  my_release.stdout_lines
-      with_items: groups ['ALL']
+        var: my_release.stdout_lines     # Print the release string line-by-line to the job log
+      with_items: groups ['ALL']         # Iterate over all hosts — ensures output is shown for every node
