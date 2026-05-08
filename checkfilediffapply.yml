@@ -1,28 +1,29 @@
 ---
-- name: Check file diff
-  hosts: all
-  gather_facts: False
+- name: Check file diff and apply changes if needed
+  hosts: all        # Run against all hosts in the inventory
+  gather_facts: False  # Facts not needed; skipping speeds up execution
 
 
   tasks:
+
     - name: Grab Repo with source file
       git:
-        repo: "{{ sourcefilerepo }}"
-        dest: /tmp/demo
-        accept_hostkey: yes
-        force: yes
-      delegate_to: 127.0.0.1
-      run_once: true
+        repo: "{{ sourcefilerepo }}"  # URL of the git repo holding the source (golden) config files
+        dest: /tmp/demo               # Clone the repo to /tmp/demo on the controller
+        accept_hostkey: yes           # Auto-accept the SSH host key so the clone doesn't prompt
+        force: yes                    # Overwrite any local changes in /tmp/demo on each run
+      delegate_to: 127.0.0.1         # Run the git clone on the AAP Controller, not the remote host
+      run_once: true                  # Only clone once regardless of how many hosts are in the play
 
     - name: Check for variance in File and make changes if needed
       copy:
-        src: "/tmp/demo/{{ file2comp }}"
-        dest: "/etc/{{ file2comp }}"
-      diff: yes
-      register : filechanges
+        src: "/tmp/demo/{{ file2comp }}"  # Source: the golden copy pulled from git (e.g. /tmp/demo/resolv.conf)
+        dest: "/etc/{{ file2comp }}"      # Destination: the live file on the remote host (e.g. /etc/resolv.conf)
+      diff: yes                           # Show a unified diff in the job output when the file changes
+      register: filechanges               # Save the result so downstream tasks can check if a change occurred
 
-    - name: stat check_mode
+    - name: Stat the file after change
       stat:
-        path: "/etc/{{ file2comp }}"
-      when: filechanges.changed == true
-      register: statvar
+        path: "/etc/{{ file2comp }}"  # Collect metadata (permissions, size, checksum) of the updated file
+      when: filechanges.changed == true  # Only run if the copy task above actually made a change
+      register: statvar                  # Store the file metadata for use in later tasks or notifications
