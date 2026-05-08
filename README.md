@@ -105,7 +105,10 @@ package: ''          # Name of the package to install
 ---
 
 #### `yumremove.yml`
-Removes a package from all target hosts using `yum`.
+Removes a package from all target hosts using `yum`. Runs serially (`serial: 1`) so removals happen one host at a time, reducing the risk of taking down a service across the entire inventory simultaneously.
+
+**Tasks:**
+1. `Removing {{ package }}` — runs `yum` with `state: absent` to uninstall the named package
 
 **Variables:**
 ```yaml
@@ -233,6 +236,16 @@ slack_token: ''      # Slack bot token
 
 ### Connectivity
 
+#### `checkpubip.yml`
+Queries an external URL (`http://www.canzahip.com`) from each host to determine its current public IP address. Runs serially (`serial: 1`) across the inventory. Sends a Slack notification with the result if `slack_token` is defined.
+
+**Variables:**
+```yaml
+slack_token: ''      # Optional: Slack bot token for IP notification
+```
+
+---
+
 #### `checkhostsup.yml`
 Tests SSH reachability across the inventory. Reachable hosts are dynamically added to the `running_hosts` group (used by downstream plays). Hosts that fail send a Slack alert with task failure details.
 
@@ -293,6 +306,13 @@ sla: "Self-Support"
 
 #### `cleanupdemomachines.yml`
 Resets a demo machine by unregistering from Insights and removing the RHSM subscription. Run this before re-provisioning a demo host.
+
+No variables required.
+
+---
+
+#### `testpause.yml`
+Development/debug playbook. Gathers service facts, pauses for 20 minutes, then prints the state of `nginx.service`. Used to inspect service state mid-workflow or simulate a delay during demos.
 
 No variables required.
 
