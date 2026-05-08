@@ -6,7 +6,7 @@
 
   tasks:
 
-    - name: Grab Repo with source file
+    - name: Clone golden config repository to AAP Controller
       git:
         repo: "{{ sourcefilerepo }}"  # URL of the git repo holding the source (golden) config files
         dest: /tmp/demo               # Clone the repo to /tmp/demo on the controller
@@ -15,14 +15,14 @@
       delegate_to: 127.0.0.1         # Run the git clone on the AAP Controller, not the remote host
       run_once: true                  # Only clone once regardless of how many hosts are in the play
 
-    - name: Check for variance in File and make changes if needed
+    - name: Compare golden config to live file and apply if different
       copy:
         src: "/tmp/demo/{{ file2comp }}"  # Source: the golden copy pulled from git (e.g. /tmp/demo/resolv.conf)
         dest: "/etc/{{ file2comp }}"      # Destination: the live file on the remote host (e.g. /etc/resolv.conf)
       diff: yes                           # Show a unified diff in the job output when the file changes
       register: filechanges               # Save the result so downstream tasks can check if a change occurred
 
-    - name: Stat the file after change
+    - name: Collect metadata of updated file to confirm change
       stat:
         path: "/etc/{{ file2comp }}"  # Collect metadata (permissions, size, checksum) of the updated file
       when: filechanges.changed == true  # Only run if the copy task above actually made a change
